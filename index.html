@@ -155,7 +155,7 @@ header {
 <header>
   <div class="header-left">
     <h1>Olympic Performance Dashboard</h1>
-    <p>Nation gold medal rankings · Summer Games 1952–2020 · Answers Q1 (performance trends) and Q2 (host nation advantage)</p>
+    <p>Nation gold medal rankings · Summer Games 1960–2020 · Answers Q1 (performance trends) and Q2 (host nation advantage)</p>
   </div>
   <div class="controls">
     <span class="ctrl-label">Nations:</span>
@@ -163,8 +163,8 @@ header {
     <button class="btn"        onclick="setTopN(8,this)">Top 8</button>
     <div class="ctrl-sep"></div>
     <span class="ctrl-label">Period:</span>
-    <button class="btn active" onclick="setEra('all',this)">1952 – 2020</button>
-    <button class="btn"        onclick="setEra('modern',this)">1988 – 2020</button>
+    <button class="btn active" onclick="setEra('all',this)">Full (1960 – 2020)</button>
+    <button class="btn"        onclick="setEra('modern',this)">Post Cold War (1992 – 2020)</button>
     <div class="ctrl-sep"></div>
     <button class="btn-reset"  onclick="resetAll()">↺ Reset</button>
   </div>
@@ -305,10 +305,10 @@ Promise.all([
     hosts.filter(h => h.game_season === 'Summer').map(h => h.game_slug)
   );
 
-  // All Summer years from 1952 onward
+  // All Summer years from 1960 onward
   const allYears = [...new Set(
     hosts
-      .filter(h => h.game_season === 'Summer' && +h.game_year >= 1952)
+      .filter(h => h.game_season === 'Summer' && +h.game_year >= 1960)
       .map(h => h.game_year)
   )].sort();
 
@@ -550,7 +550,7 @@ function drawBump() {
 
   // Filter years by selected era
   let years = PROCESSED.years.slice();
-  if (activeEra === 'modern') years = years.filter(y => +y >= 1988);
+  if (activeEra === 'modern') years = years.filter(y => +y >= 1992);
 
   // Select top N nations by average rank in this era
   const rankedNations = PROCESSED.nations.map(n => {
