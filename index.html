@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Olympic Performance Dashboard — 7CCSMSDV</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #f4f3f0;
+  --panel: #ffffff;
+  --border: #e0e0e0;
+  --text: #1a1a1a;
+  --muted: #888;
+  --accent: #2166ac;
+}
+
+body {
+  font-family: 'Georgia', serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/*Header*/
+header {
+  background: #1a1a1a;
+  color: white;
+  padding: 14px 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.hdr-left h1 { font-size: 16px; font-weight: 700; }
+.hdr-left p  { font-size: 10px; color: #aaa; margin-top: 2px; }
+
+.controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ctrl-sep  { width: 1px; height: 18px; background: #444; margin: 0 3px; }
+.clabel    { font-size: 10px; color: #888; }
+
+.btn {
+  background: #2a2a2a; color: #ccc;
+  border: 1px solid #444; padding: 3px 11px;
+  border-radius: 4px; font-size: 10px;
+  font-family: Georgia, serif; cursor: pointer;
+  transition: all 0.12s;
+}
+.btn:hover  { background: #3a3a3a; color: white; }
+.btn.active { background: #2166ac; color: white; border-color: #2166ac; }
+.btn-reset  {
+  background: transparent; color: #666;
+  border: 1px solid #444; padding: 3px 9px;
+  border-radius: 4px; font-size: 10px;
+  font-family: Georgia, serif; cursor: pointer;
+}
+.btn-reset:hover { color: #ccc; }
+
+/*Dashboard grid*/
+.dashboard {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  grid-template-rows: auto auto auto;
+  gap: 12px;
+  padding: 12px 16px;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+/*Panels*/
+.panel {
+  background: var(--panel);
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+.panel-bump    { grid-column: 1; grid-row: 1 / 4; }
+.panel-trend   { grid-column: 2; grid-row: 1; }
+.panel-host    { grid-column: 2; grid-row: 2; }
+.panel-disc    { grid-column: 2; grid-row: 3; }
+
+.panel-header  {
+  padding: 10px 16px 8px;
+  border-bottom: 1px solid #f0f0ee;
+}
+.ptitle { font-size: 11.5px; font-weight: 700; }
+.psub   { font-size: 9.5px; color: #999; margin-top: 1px; }
+.pbody  { padding: 10px 14px; }
+
+/*Tooltip*/
+.tooltip {
+  position: fixed;
+  background: #111; color: white;
+  padding: 8px 12px; border-radius: 6px;
+  font-size: 11px; pointer-events: none;
+  opacity: 0; transition: opacity 0.1s;
+  z-index: 9999; line-height: 1.8;
+  max-width: 220px; font-family: Georgia, serif;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+.tooltip strong { font-size: 12px; display: block; margin-bottom: 2px; }
+
+/*Legend*/
+.legend-wrap { padding: 8px 4px 4px; }
+.legend-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 10px; margin-bottom: 6px; }
+.leg-item {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 10.5px; color: #444; cursor: pointer;
+  padding: 3px 6px; border-radius: 4px;
+  transition: background 0.1s; user-select: none;
+}
+.leg-item:hover { background: #f5f5f3; }
+.leg-item.faded { opacity: 0.25; }
+.leg-item.selected { background: #f0f4f8; font-weight: 700; }
+.leg-swatch { width: 20px; height: 3.5px; border-radius: 2px; flex-shrink: 0; }
+.leg-note { font-size: 9.5px; color: #bbb; line-height: 1.5; border-top: 1px solid #eee; padding-top: 6px; }
+
+/*Placeholder*/
+.placeholder {
+  text-align: center; padding: 24px 12px;
+  color: #ccc; font-size: 11px; line-height: 1.6;
+}
+.placeholder .arr { font-size: 22px; display: block; margin-bottom: 6px; }
+
+/*Brush styles*/
+.brush .selection {
+  fill: #2166ac;
+  fill-opacity: 0.08;
+  stroke: #2166ac;
+  stroke-width: 1px;
+}
+.brush .handle { fill: #2166ac; fill-opacity: 0.6; }
+
+/*D3 element states*/
+.nation-line { transition: opacity 0.2s; cursor: pointer; }
+.nation-line.faded  { opacity: 0.06; }
+.nation-line.raised { stroke-width: 3.5px !important; }
+.nation-dot  { cursor: pointer; transition: opacity 0.2s; }
+.nation-dot.faded  { opacity: 0.06; }
+.nation-dot.active { stroke-width: 2.5px !important; }
+
+/*Info bar*/
+.info-bar {
+  background: #eee; border-top: 1px solid #ddd;
+  padding: 6px 16px; font-size: 9.5px; color: #999;
+  display: flex; gap: 16px; flex-wrap: wrap;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-left">
+    <h1>Olympic Performance Dashboard</h1>
+    <p>Nation gold medal rankings · Summer Games 1960–2020 · Answers Q1 (performance trends) and Q2 (host nation advantage) · 7CCSMSDV</p>
+  </div>
+  <div class="controls">
+    <span class="clabel">Nations:</span>
+    <button class="btn active" onclick="setTopN(5,this)">Top 5</button>
+    <button class="btn"        onclick="setTopN(8,this)">Top 8</button>
+    <div class="ctrl-sep"></div>
+    <span class="clabel">Period:</span>
+    <button class="btn active" onclick="setEra('all',this)">1960–2020</button>
+    <button class="btn"        onclick="setEra('modern',this)">1992–2020</button>
+    <button class="btn-reset"  onclick="resetAll()">↺ Reset</button>
+  </div>
+</header>
+
+<div class="dashboard" id="dashboard">
+
+  <!-- Panel 1: Bump chart (main) -->
+  <div class="panel panel-bump">
+    <div class="panel-header">
+      <div class="ptitle">Gold medal rank per edition</div>
+      <div class="psub">Rank 1 = most golds · ◎ host nation · Click dot to explore · Drag on chart to filter years</div>
+    </div>
+    <div class="pbody" style="padding:8px 12px 4px;">
+      <svg id="bump-svg"></svg>
+      <div class="legend-wrap">
+        <div class="legend-grid" id="legend"></div>
+        <div class="leg-note">
+          ◎ Outlined circle = hosting nation that year · Gap = boycott or absent<br>
+          USSR 1952–1988 · Russian Federation (successor) 1996–2016
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 2: Medal trend for selected nation -->
+  <div class="panel panel-trend">
+    <div class="panel-header">
+      <div class="ptitle" id="trend-title">Medal trend over time</div>
+      <div class="psub"  id="trend-sub">Click a nation on the bump chart</div>
+    </div>
+    <div class="pbody" id="trend-body">
+      <div class="placeholder">
+        <span class="arr">←</span>Click any nation to see their Gold · Silver · Bronze trend across all editions
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 3: Host nation effect -->
+  <div class="panel panel-host">
+    <div class="panel-header">
+      <div class="ptitle">Host nation rank: during vs average</div>
+      <div class="psub">Comparing each nation's rank when hosting vs their non-host average</div>
+    </div>
+    <div class="pbody" id="host-body">
+      <div class="placeholder" style="padding:16px 10px">
+        <span class="arr" style="font-size:18px">↑</span>Loading host effect data...
+      </div>
+    </div>
+  </div>
+
+  <!-- Panel 4: Discipline breakdown -->
+  <div class="panel panel-disc">
+    <div class="panel-header">
+      <div class="ptitle" id="disc-title">Top disciplines</div>
+      <div class="psub"  id="disc-sub">Click a dot on the bump chart</div>
+    </div>
+    <div class="pbody" id="disc-body">
+      <div class="placeholder" style="padding:16px 10px">
+        <span class="arr" style="font-size:18px">←</span>Click any dot to see medals by discipline
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="info-bar">
+  <span><strong>Sources:</strong> olympic_medals.csv &amp; olympic_hosts.csv — Olympics.com (Kaggle: piterfm/olympic-games-medals-19862018)</span>
+  <span><strong>Processing:</strong> d3.csv() · Summer Games only · Gold medals deduplicated by (edition + event + country) · Ranks across all competing nations</span>
+</div>
+
+<div class="tooltip" id="tooltip"></div>
+
+<script>
+// NATION CONFIG
+const NATION_CONFIG = [
+  { key:'USA',       label:'USA',       color:'#2166ac',
+    names:['United States of America'],
+    hosted:['los-angeles-1984','atlanta-1996'] },
+  { key:'USSR',      label:'USSR',      color:'#c0392b',
+    names:['Soviet Union'], hosted:['moscow-1980'] },
+  { key:'Russia',    label:'Russia',    color:'#e67e22',
+    names:['Russian Federation'], hosted:[] },
+  { key:'China',     label:'China',     color:'#d9821a',
+    names:["People's Republic of China"], hosted:['beijing-2008'] },
+  { key:'GB',        label:'GB',        color:'#1a9850',
+    names:['Great Britain'], hosted:['london-2012'] },
+  { key:'Japan',     label:'Japan',     color:'#0F6E56',
+    names:['Japan'], hosted:['tokyo-1964','tokyo-2020'] },
+  { key:'Australia', label:'Australia', color:'#8e44ad',
+    names:['Australia'], hosted:['sydney-2000'] },
+  { key:'Germany',   label:'Germany',   color:'#7f8c8d',
+    names:['Germany','Federal Republic of Germany'], hosted:[] },
+];
+const NAME_TO_KEY = {};
+NATION_CONFIG.forEach(n => n.names.forEach(nm => NAME_TO_KEY[nm] = n.key));
+const KEY_TO_CONFIG = Object.fromEntries(NATION_CONFIG.map(n => [n.key, n]));
+
+const BOYCOTTS = {
+  USA:  {'1980':'Boycott — Moscow Games'},
+  USSR: {'1984':'Boycott — Los Angeles Games'},
+};
+const MAX_RANK = 15;
+
+// STATE
+let DATA        = null;
+let activeTopN  = 5;
+let activeEra   = 'all';
+let highlighted = null;
+let selectedKey = null;
+let selectedYr  = null;
+let brushYears  = null;  // [yearStart, yearEnd] or null
+
+// DATA LOADING & PROCESSING
+Promise.all([
+  d3.csv('olympic_medals.csv'),
+  d3.csv('olympic_hosts.csv')
+]).then(([medals, hosts]) => {
+
+  // Step 1: Build host lookup
+  const hostMap = {};
+  hosts.forEach(h => { hostMap[h.game_slug] = h; });
+
+  // Step 2: Summer slugs and years >= 1960
+  const summerSlugs = new Set(
+    hosts.filter(h => h.game_season === 'Summer').map(h => h.game_slug)
+  );
+  const allYears = [...new Set(
+    hosts.filter(h => h.game_season === 'Summer' && +h.game_year >= 1960)
+         .map(h => String(h.game_year))
+  )].sort();
+
+  const slug_to_year = {};
+  hosts.forEach(h => { slug_to_year[h.game_slug] = String(h.game_year); });
+
+  const hostYears = {};
+  hosts.filter(h => h.game_season === 'Summer' && allYears.includes(String(h.game_year)))
+       .forEach(h => { hostYears[String(h.game_year)] = h.game_location; });
+
+  // Step 3: Deduplicate gold medals (team event fix)
+  const seenGold = new Set();
+  const seenAll  = new Set();
+
+  // Per-country gold for global ranking
+  const allCountryGold = {};
+
+  // Per-tracked-nation data
+  const nationGold   = {};  // key -> year -> count
+  const nationMedals = {};  // key -> year -> {G,S,B}
+  const nationDisc   = {};  // key -> year -> {disc -> count}
+
+  medals.forEach(row => {
+    if (!summerSlugs.has(row.slug_game)) return;
+    const yr = hostMap[row.slug_game] ? String(hostMap[row.slug_game].game_year) : null;
+    if (!yr || !allYears.includes(yr)) return;
+
+    // Global gold dedup
+    if (row.medal_type === 'GOLD') {
+      const gk = `${row.slug_game}|${row.event_title}|${row.country_name}`;
+      if (!seenGold.has(gk)) {
+        seenGold.add(gk);
+        if (!allCountryGold[row.country_name]) allCountryGold[row.country_name] = {};
+        allCountryGold[row.country_name][yr] = (allCountryGold[row.country_name][yr] || 0) + 1;
+      }
+    }
+
+    // Tracked nation detail
+    const key = NAME_TO_KEY[row.country_name];
+    if (!key) return;
+
+    const ak = `${row.slug_game}|${row.event_title}|${row.country_name}|${row.medal_type}`;
+    if (seenAll.has(ak)) return;
+    seenAll.add(ak);
+
+    // Medal type breakdown
+    if (!nationMedals[key]) nationMedals[key] = {};
+    if (!nationMedals[key][yr]) nationMedals[key][yr] = {G:0,S:0,B:0};
+    nationMedals[key][yr][row.medal_type[0]]++;
+
+    // Gold only for our nations
+    if (row.medal_type === 'GOLD') {
+      if (!nationGold[key]) nationGold[key] = {};
+      const gk = `${row.slug_game}|${row.event_title}|${row.country_name}`;
+      if (seenGold.has(gk)) {
+        nationGold[key][yr] = (nationGold[key][yr] || 0) + 1;
+      }
+    }
+
+    // Discipline breakdown
+    if (!nationDisc[key]) nationDisc[key] = {};
+    if (!nationDisc[key][yr]) nationDisc[key][yr] = {};
+    nationDisc[key][yr][row.discipline_title] = (nationDisc[key][yr][row.discipline_title] || 0) + 1;
+  });
+
+  // Step 4: Rank computation across ALL nations
+  const yearRankings = {};
+  allYears.forEach(yr => {
+    const counts = Object.entries(allCountryGold)
+      .map(([name, byYr]) => ({name, golds: byYr[yr] || 0}))
+      .filter(d => d.golds > 0)
+      .sort((a,b) => b.golds - a.golds);
+    yearRankings[yr] = {};
+    counts.forEach((d,i) => { yearRankings[yr][d.name] = i+1; });
+  });
+
+  // Step 5: Build nation data points
+  const nationsData = NATION_CONFIG.map(n => {
+    const points = allYears.map(yr => {
+      const rank = n.names.reduce((f,nm) => f || yearRankings[yr]?.[nm] || null, null);
+      const med  = nationMedals[n.key]?.[yr] || {G:0,S:0,B:0};
+      const hosted = n.hosted.some(s => slug_to_year[s] === yr);
+      const hostCity = n.hosted.filter(s => slug_to_year[s] === yr)
+                               .map(s => hostMap[s]?.game_location || '')[0] || '';
+      return { year:yr, rank, hosted, hostCity,
+               G:med.G, S:med.S, B:med.B,
+               golds: nationGold[n.key]?.[yr] || 0 };
+    });
+    return { key:n.key, label:n.label, color:n.color, points };
+  });
+
+  // Step 6: Build discipline lookup (top 10 per nation per year)
+  const disciplines = {};
+  Object.entries(nationDisc).forEach(([key, byYr]) => {
+    disciplines[key] = {};
+    Object.entries(byYr).forEach(([yr, discMap]) => {
+      disciplines[key][yr] = Object.entries(discMap)
+        .sort((a,b) => b[1]-a[1]).slice(0,10)
+        .reduce((acc,[k,v]) => { acc[k]=v; return acc; }, {});
+    });
+  });
+
+// Step 7: Host effect computation
+  const hostEffect = [];
+  nationsData.forEach(n => {
+    const cfg = KEY_TO_CONFIG[n.key];
+    if (!cfg.hosted.length) return;
+    const hostYrList = cfg.hosted.map(s => slug_to_year[s]).filter(Boolean);
+    const allRanks = n.points.filter(p => p.rank !== null && p.rank <= 30);
+    const hostRanks    = allRanks.filter(p => hostYrList.includes(p.year));
+    const nonHostRanks = allRanks.filter(p => !hostYrList.includes(p.year));
+    if (!hostRanks.length || !nonHostRanks.length) return;
+    const avgNonHost = d3.mean(nonHostRanks, p => p.rank);
+    hostRanks.forEach(p => {
+      hostEffect.push({
+        key: n.key, label: n.label, color: n.color,
+        year: p.year, hostRank: p.rank,
+        avgNonHost: +avgNonHost.toFixed(1),
+        boost: +(avgNonHost / p.rank).toFixed(1),
+        hostCity: p.hostCity
+      });
+    });
+  });
+
+  DATA = { years:allYears, nations:nationsData, disciplines, hostYears, hostEffect };
+
+  buildLegend();
+  drawBump();
+  drawHostPanel();
+
+}).catch(err => {
+  console.error('FULL ERROR:', err);
+  document.getElementById('dashboard').innerHTML =
+    `<div style="padding:40px;color:#c0392b;font-family:Georgia,serif;grid-column:1/-1">
+      <strong>Cannot load CSV files.</strong><br><br>
+      Error: ${err.message}<br><br>
+      Make sure <code>olympic_medals.csv</code> and <code>olympic_hosts.csv</code>
+      are in the same folder as <code>index.html</code>, then run:<br>
+      <code>python3 -m http.server 8000</code> and open
+      <code>http://localhost:8000</code>
+    </div>`;
+});
+
+// CONTROLS
+function setTopN(n, btn) {
+  activeTopN = n;
+  document.querySelectorAll('[onclick^="setTopN"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  drawBump();
+}
+function setEra(era, btn) {
+  activeEra = era;
+  brushYears = null;
+  document.querySelectorAll('[onclick^="setEra"]').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  drawBump();
+}
+function resetAll() {
+  highlighted = null; selectedKey = null; selectedYr = null; brushYears = null;
+  applyHighlight();
+  resetPanels();
+  drawBump();
+}
+function resetPanels() {
+  el('trend-title').textContent = 'Medal trend over time';
+  el('trend-sub').textContent   = 'Click a nation on the bump chart';
+  el('trend-body').innerHTML    = ph('←','Click any nation to see their Gold · Silver · Bronze trend across all editions');
+  el('disc-title').textContent  = 'Top disciplines';
+  el('disc-sub').textContent    = 'Click a dot on the bump chart';
+  el('disc-body').innerHTML     = ph('←','Click any dot to see medals by discipline', '16px 10px','18px');
+}
+const el = id => document.getElementById(id);
+const ph = (arr, txt, pad='24px 12px', sz='22px') =>
+  `<div class="placeholder" style="padding:${pad}"><span class="arr" style="font-size:${sz}">${arr}</span>${txt}</div>`;
+
+
+// LEGEND
+function buildLegend() {
+  const wrap = el('legend');
+  wrap.innerHTML = '';
+  DATA.nations.forEach(n => {
+    const div = document.createElement('div');
+    div.className = 'leg-item';
+    div.id = `leg-${n.key}`;
+    div.innerHTML = `<div class="leg-swatch" style="background:${n.color}"></div><span>${n.label}</span>`;
+    div.onclick = () => {
+      if (highlighted === n.key) {
+        highlighted = null;
+        selectedKey = null;
+        applyHighlight();
+        resetPanels();
+      } else {
+        highlighted = n.key;
+        selectedKey = n.key;
+        applyHighlight();
+        drawTrendPanel(n);
+      }
+    };
+    wrap.appendChild(div);
+  });
+}
+
+function applyHighlight() {
+  const k = highlighted;
+  d3.selectAll('.nation-line')
+    .classed('faded',  d => !!k && d.key !== k)
+    .classed('raised', d => !!k && d.key === k);
+  d3.selectAll('.nation-dot')
+    .classed('faded', d => !!k && d.nKey !== k);
+  document.querySelectorAll('.leg-item').forEach(item => {
+    const key = item.id.replace('leg-','');
+    item.classList.toggle('faded',    !!k && key !== k);
+    item.classList.toggle('selected', !!k && key === k);
+  });
+}
+
+// BUMP CHART with D3 BRUSH
+function drawBump() {
+  if (!DATA) return;
+  const svg = d3.select('#bump-svg');
+  svg.selectAll('*').remove();
+
+  // Filter years
+  let years = DATA.years.slice();
+  if (activeEra === 'modern') years = years.filter(y => +y >= 1992);
+  if (brushYears) years = years.filter(y => y >= brushYears[0] && y <= brushYears[1]);
+
+  // Top N by average rank
+  const visible = DATA.nations.map(n => {
+    const pts = n.points.filter(p => years.includes(p.year) && p.rank !== null && p.rank <= MAX_RANK);
+    return { ...n, avgRank: pts.length ? d3.mean(pts, p => p.rank) : 999 };
+  }).sort((a,b) => a.avgRank - b.avgRank).slice(0, activeTopN);
+
+  // Dimensions
+  const container = document.querySelector('.panel-bump .pbody');
+  const W  = container.clientWidth - 24;
+  const H  = Math.max(380, Math.min(520, window.innerHeight - 300));
+  const mg = { top:28, right:68, bottom:60, left:44 };
+  const bh = 28; // brush height at bottom
+  const pw = W - mg.left - mg.right;
+  const ph = H - mg.top - mg.bottom - bh - 8;
+
+  svg.attr('viewBox', `0 0 ${W} ${H}`).attr('height', H);
+
+  // Scales
+  const allDisplayYears = (() => {
+    let y = DATA.years.slice();
+    if (activeEra === 'modern') y = y.filter(yr => +yr >= 1992);
+    return y;
+  })();
+
+  const xSc    = d3.scalePoint().domain(years).range([0, pw]).padding(0.15);
+  const xBrush = d3.scalePoint().domain(allDisplayYears).range([0, pw]).padding(0.15);
+  const ySc    = d3.scaleLinear().domain([1, MAX_RANK]).range([0, ph]);
+
+  const g = svg.append('g').attr('transform', `translate(${mg.left},${mg.top})`);
+
+  // Grid
+  d3.range(1, MAX_RANK+1, 2).forEach(r => {
+    g.append('line')
+      .attr('x1',0).attr('x2',pw)
+      .attr('y1',ySc(r)).attr('y2',ySc(r))
+      .attr('stroke','#eee').attr('stroke-width',0.6)
+      .attr('stroke-dasharray', r===1?'none':'3,4');
+  });
+
+  //Host verticals
+  years.forEach(yr => {
+    if (!DATA.hostYears[yr]) return;
+    const x = xSc(yr);
+    g.append('line')
+      .attr('x1',x).attr('x2',x).attr('y1',0).attr('y2',ph)
+      .attr('stroke','#e8e8e8').attr('stroke-width',1)
+      .attr('stroke-dasharray','4,3');
+    g.append('text')
+      .attr('x',x).attr('y',ph+34)
+      .attr('text-anchor','middle')
+      .attr('font-size',7).attr('fill','#ccc')
+      .attr('font-family','Georgia,serif')
+      .text(DATA.hostYears[yr]);
+  });
+
+  //Axes
+  g.append('g')
+    .call(d3.axisLeft(ySc).tickValues(d3.range(1,MAX_RANK+1,2)).tickSize(-pw).tickFormat(d=>d))
+    .call(ax => ax.select('.domain').remove())
+    .call(ax => ax.selectAll('.tick line').attr('stroke','#eee').attr('stroke-dasharray','3,4'))
+    .call(ax => ax.selectAll('.tick text').attr('fill','#bbb').attr('font-size',9).attr('font-family','Georgia,serif'));
+
+  g.append('text').attr('transform','rotate(-90)').attr('x',-ph/2).attr('y',-32)
+    .attr('text-anchor','middle').attr('font-size',10).attr('fill','#888')
+    .attr('font-family','Georgia,serif').text('Gold medal rank (1 = best)');
+
+  g.append('g').attr('transform',`translate(0,${ph})`)
+    .call(d3.axisBottom(xSc).tickSize(3))
+    .call(ax => ax.select('.domain').attr('stroke','#ddd'))
+    .call(ax => ax.selectAll('.tick line').attr('stroke','#ddd'))
+    .call(ax => ax.selectAll('.tick text').attr('fill','#aaa').attr('font-size',8).attr('font-family','Georgia,serif').attr('dy','1.3em'));
+
+  g.append('text').attr('x',pw/2).attr('y',ph+44)
+    .attr('text-anchor','middle').attr('font-size',10).attr('fill','#888')
+    .attr('font-family','Georgia,serif').text('Olympic Summer Games edition');
+
+  //Lines & dots
+  const lineGen = d3.line()
+    .x(p => xSc(p.year)).y(p => ySc(p.rank))
+    .curve(d3.curveCatmullRom.alpha(0.5));
+
+  const tt = el('tooltip');
+
+  visible.forEach(nation => {
+    const pts = nation.points.filter(p => years.includes(p.year));
+    const segs = []; let cur = [];
+    pts.forEach(p => {
+      if (p.rank !== null && p.rank <= MAX_RANK) { cur.push(p); }
+      else { if (cur.length > 1) segs.push([...cur]); cur = []; }
+    });
+    if (cur.length > 1) segs.push(cur);
+
+    // Animated line draw-in
+    segs.forEach(seg => {
+      const path = g.append('path')
+        .datum(nation)
+        .attr('class','nation-line')
+        .attr('d', lineGen(seg))
+        .attr('fill','none')
+        .attr('stroke', nation.color)
+        .attr('stroke-width', 2.2)
+        .attr('stroke-linejoin','round')
+        .attr('stroke-linecap','round')
+        .style('cursor','pointer')
+        .on('click', () => {
+          highlighted = nation.key;
+          selectedKey = nation.key;
+          applyHighlight();
+          drawTrendPanel(DATA.nations.find(n => n.key === nation.key));
+        });
+
+      // Animate line drawing in
+      const totalLength = path.node().getTotalLength();
+      path.attr('stroke-dasharray', totalLength)
+          .attr('stroke-dashoffset', totalLength)
+          .transition().duration(800).ease(d3.easeQuadOut)
+          .attr('stroke-dashoffset', 0);
+    });
+
+    // Dots
+    pts.forEach(p => {
+      if (p.rank === null || p.rank > MAX_RANK) return;
+      const cx = xSc(p.year), cy = ySc(p.rank);
+
+      if (p.hosted) {
+        g.append('circle').attr('cx',cx).attr('cy',cy).attr('r',10)
+          .attr('fill','white').attr('stroke',nation.color).attr('stroke-width',2)
+          .style('pointer-events','none');
+      }
+
+      // Active dot indicator
+      const isSelected = selectedKey === nation.key && selectedYr === p.year;
+
+      g.append('circle')
+        .datum({ nKey:nation.key, nLabel:nation.label, nColor:nation.color, point:p, nation })
+        .attr('class', 'nation-dot' + (isSelected ? ' active' : ''))
+        .attr('cx',cx).attr('cy',cy)
+        .attr('r', p.hosted ? 5.5 : 4)
+        .attr('fill', isSelected ? 'white' : nation.color)
+        .attr('stroke', nation.color)
+        .attr('stroke-width', isSelected ? 2.5 : 1.2)
+        .on('mouseenter', (ev,d) => {
+          const bo = BOYCOTTS[d.nKey]?.[d.point.year];
+          tt.style.opacity = 1;
+          tt.innerHTML = `
+            <strong>${d.nLabel} — ${d.point.year}</strong>
+            Rank: <b>${d.point.rank}</b> &nbsp;|&nbsp; Golds: ${d.point.G || d.point.golds}<br>
+            ${d.point.hosted ? `<span style="color:#6fcf97">◎ Host: ${d.point.hostCity}</span><br>` : ''}
+            ${bo ? `<span style="color:#f39c12">⚠ ${bo}</span>` : ''}
+            <span style="color:#aaa;font-size:10px">Click to explore →</span>`.trim();
+        })
+        .on('mousemove', ev => {
+          tt.style.left = (ev.clientX+16)+'px';
+          tt.style.top  = (ev.clientY-50)+'px';
+        })
+        .on('mouseleave', () => { tt.style.opacity = 0; })
+        .on('click', (ev,d) => {
+          selectedKey = d.nKey;
+          selectedYr  = d.point.year;
+          highlighted = d.nKey;
+          applyHighlight();
+          drawTrendPanel(d.nation);
+          drawDiscPanel(d.nation, d.point);
+          drawBump(); // redraw to show active dot
+        });
+    });
+
+    // Nation end label
+    const last = [...pts].reverse().find(p => p.rank !== null && p.rank <= MAX_RANK);
+    if (last) {
+      g.append('text')
+        .attr('x', xSc(last.year)+9).attr('y', ySc(last.rank)+4)
+        .attr('font-size',10).attr('font-weight','bold')
+        .attr('font-family','Georgia,serif').attr('fill',nation.color)
+        .text(nation.label);
+    }
+  });
+
+  //Annotations
+  [
+    { year:'1980', text:'USA boycott',         color:'#c0392b', above:true  },
+    { year:'1984', text:'USSR boycott',        color:'#2166ac', above:true  },
+    { year:'2008', text:'China hosts → rank 1',color:'#d9821a', above:true  },
+    { year:'2012', text:'GB hosts → rank 3',   color:'#1a9850', above:true },
+    { year:'2020', text:'Japan hosts → rank 3',color:'#0F6E56', above:true },
+  ].forEach(a => {
+    if (!years.includes(a.year)) return;
+    g.append('text')
+      .attr('x', xSc(a.year))
+      .attr('y', a.above ? -10 : ph+14)
+      .attr('text-anchor','middle')
+      .attr('font-size',8).attr('font-style','italic')
+      .attr('font-family','Georgia,serif').attr('fill',a.color)
+      .text(a.text);
+  });
+
+  //D3 BRUSH on X axis for year range selection
+  const brushG = svg.append('g')
+    .attr('transform', `translate(${mg.left},${mg.top + ph + 48})`);
+
+  // Mini axis for brush context
+  brushG.append('g')
+    .call(d3.axisBottom(xBrush).tickSize(3).tickValues(allDisplayYears.filter((_,i) => i%4===0)))
+    .call(ax => ax.select('.domain').attr('stroke','#ddd'))
+    .call(ax => ax.selectAll('.tick line').attr('stroke','#ddd'))
+    .call(ax => ax.selectAll('.tick text').attr('fill','#ccc').attr('font-size',7));
+
+  const brush = d3.brushX()
+    .extent([[0,0],[pw,bh]])
+    .on('end', brushed);
+
+  brushG.append('g').attr('class','brush').call(brush);
+
+  // Restore brush selection if exists
+  if (brushYears) {
+    const x0 = xBrush(brushYears[0]);
+    const x1 = xBrush(brushYears[1]);
+    if (x0 !== undefined && x1 !== undefined) {
+      brushG.select('.brush').call(brush.move, [x0, x1]);
+    }
+  }
+
+  brushG.append('text')
+    .attr('x', pw/2).attr('y', bh + 16)
+    .attr('text-anchor','middle')
+    .attr('font-size',9).attr('fill','#bbb')
+    .attr('font-family','Georgia,serif')
+    .text('← Drag to zoom into a year range →');
+
+  function brushed(event) {
+    if (!event.selection) { brushYears = null; drawBump(); return; }
+    const [x0, x1] = event.selection;
+    // Find years within brush range
+    const filtered = allDisplayYears.filter(yr => {
+      const x = xBrush(yr);
+      return x >= x0 - 20 && x <= x1 + 20;
+    });
+    if (filtered.length >= 2) {
+      brushYears = [filtered[0], filtered[filtered.length-1]];
+      drawBump();
+    }
+  }
+
+  applyHighlight();
+}
+
+
+// PANEL 2: MEDAL TREND - multi-line D3 chart
+function drawTrendPanel(nation) {
+  el('trend-title').textContent = `${nation.label} - medal trend 1960-2020`;
+  el('trend-sub').textContent   = 'Gold · Silver · Bronze across all editions';
+
+  const container = el('trend-body');
+  container.innerHTML = '';
+
+  const pts = nation.points.filter(p => p.G + p.S + p.B > 0);
+  if (!pts.length) { container.innerHTML = ph('?','No medal data available'); return; }
+
+  const W = container.clientWidth - 24;
+  const H = 160;
+  const mg = { top:16, right:16, bottom:32, left:32 };
+  const pw = W - mg.left - mg.right;
+  const ph2 = H - mg.top - mg.bottom;
+
+  const xSc = d3.scalePoint().domain(pts.map(p=>p.year)).range([0,pw]).padding(0.1);
+  const maxVal = d3.max(pts, p => Math.max(p.G, p.S, p.B));
+  const ySc = d3.scaleLinear().domain([0, maxVal]).range([ph2, 0]).nice();
+
+  const svg = d3.select(container).append('svg')
+    .attr('width', W).attr('height', H);
+  const g = svg.append('g').attr('transform',`translate(${mg.left},${mg.top})`);
+
+  // Grid
+  g.append('g')
+    .call(d3.axisLeft(ySc).ticks(4).tickSize(-pw))
+    .call(ax => ax.select('.domain').remove())
+    .call(ax => ax.selectAll('.tick line').attr('stroke','#eee'))
+    .call(ax => ax.selectAll('.tick text').attr('fill','#bbb').attr('font-size',8).attr('font-family','Georgia,serif'));
+
+  // X axis
+  g.append('g').attr('transform',`translate(0,${ph2})`)
+    .call(d3.axisBottom(xSc).tickValues(pts.filter((_,i)=>i%4===0).map(p=>p.year)).tickSize(2))
+    .call(ax => ax.select('.domain').attr('stroke','#ddd'))
+    .call(ax => ax.selectAll('.tick line').attr('stroke','#ddd'))
+    .call(ax => ax.selectAll('.tick text').attr('fill','#aaa').attr('font-size',7.5).attr('font-family','Georgia,serif'));
+
+  // Medal type lines
+  const lineGen = d3.line().x(p => xSc(p.year)).curve(d3.curveCatmullRom.alpha(0.5));
+  const medalTypes = [
+    { key:'G', color:'#b8860b', label:'Gold',   dash:'none' },
+    { key:'S', color:'#888',    label:'Silver',  dash:'4,2' },
+    { key:'B', color:'#a0522d', label:'Bronze',  dash:'2,2' },
+  ];
+
+  medalTypes.forEach(mt => {
+    const line = lineGen.y(p => ySc(p[mt.key]));
+    const path = g.append('path')
+      .datum(pts)
+      .attr('fill','none')
+      .attr('stroke', mt.color)
+      .attr('stroke-width', mt.key==='G' ? 2.2 : 1.6)
+      .attr('stroke-dasharray', mt.dash)
+      .attr('d', line);
+
+    // Animate
+    const tl = path.node().getTotalLength();
+    path.attr('stroke-dasharray', tl + (mt.dash!=='none' ? ` ${mt.dash}` : ''))
+        .attr('stroke-dashoffset', tl)
+        .transition().duration(600).ease(d3.easeQuadOut)
+        .attr('stroke-dashoffset', 0);
+  });
+
+  // Vertical line for selected year
+  if (selectedYr && xSc(selectedYr) !== undefined) {
+    g.append('line')
+      .attr('x1', xSc(selectedYr)).attr('x2', xSc(selectedYr))
+      .attr('y1', 0).attr('y2', ph2)
+      .attr('stroke', nation.color).attr('stroke-width', 1.5)
+      .attr('stroke-dasharray','3,2').attr('opacity',0.7);
+    g.append('text')
+      .attr('x', xSc(selectedYr)+3).attr('y', 10)
+      .attr('font-size',8).attr('fill',nation.color)
+      .attr('font-family','Georgia,serif')
+      .text(selectedYr);
+  }
+
+  // Host year markers
+  pts.filter(p => p.hosted).forEach(p => {
+    g.append('circle')
+      .attr('cx', xSc(p.year)).attr('cy', ySc(p.G))
+      .attr('r', 5).attr('fill','none')
+      .attr('stroke', nation.color).attr('stroke-width',1.5);
+  });
+
+  // Legend
+  const legG = svg.append('g').attr('transform',`translate(${mg.left},${H-6})`);
+  medalTypes.forEach((mt,i) => {
+    legG.append('line').attr('x1',i*70).attr('x2',i*70+16).attr('y1',0).attr('y2',0)
+      .attr('stroke',mt.color).attr('stroke-width',2);
+    legG.append('text').attr('x',i*70+19).attr('y',4)
+      .attr('font-size',8.5).attr('fill','#666').attr('font-family','Georgia,serif')
+      .text(mt.label);
+  });
+  legG.append('text').attr('x',215).attr('y',4)
+    .attr('font-size',8).attr('fill','#bbb').attr('font-family','Georgia,serif')
+    .text('◎ = host year');
+}
+
+// PANEL 3: HOST EFFECT - grouped bar chart
+function drawHostPanel() {
+  if (!DATA?.hostEffect?.length) return;
+
+  const container = el('host-body');
+  container.innerHTML = '';
+
+  const data = DATA.hostEffect;
+
+  const W = container.clientWidth - 24;
+  const H = 190;
+  const mg = { top:12, right:16, bottom:40, left:70 };
+  const pw = W - mg.left - mg.right;
+  const ph2 = H - mg.top - mg.bottom;
+
+  // Group by nation label
+  const nations = [...new Set(data.map(d => d.label))];
+  const ySc = d3.scaleBand().domain(nations).range([0,ph2]).padding(0.25);
+  const maxRk = d3.max(data, d => Math.max(d.hostRank, d.avgNonHost));
+  const xSc = d3.scaleLinear().domain([0, Math.ceil(maxRk)+1]).range([0, pw]).nice();
+
+  const svg = d3.select(container).append('svg').attr('width',W).attr('height',H);
+  const g = svg.append('g').attr('transform',`translate(${mg.left},${mg.top})`);
+
+  // Grid
+  g.append('g')
+    .call(d3.axisBottom(xSc).ticks(5).tickSize(ph2))
+    .attr('transform','translate(0,0)')
+    .call(ax => ax.select('.domain').remove())
+    .call(ax => ax.selectAll('.tick line').attr('stroke','#eee').attr('y1',0))
+    .call(ax => ax.selectAll('.tick text').attr('fill','#bbb').attr('font-size',0));
+
+  // Y axis
+  g.append('g').call(d3.axisLeft(ySc).tickSize(0))
+    .call(ax => ax.select('.domain').remove())
+    .call(ax => ax.selectAll('.tick text').attr('fill','#555').attr('font-size',9.5).attr('font-family','Georgia,serif').attr('dx','-4'));
+
+  // X axis
+  g.append('g').attr('transform',`translate(0,${ph2})`)
+    .call(d3.axisBottom(xSc).ticks(5).tickSize(3))
+    .call(ax => ax.select('.domain').attr('stroke','#ddd'))
+    .call(ax => ax.selectAll('.tick line').attr('stroke','#ddd'))
+    .call(ax => ax.selectAll('.tick text').attr('fill','#aaa').attr('font-size',8).attr('font-family','Georgia,serif'));
+
+  g.append('text').attr('x',pw/2).attr('y',ph2+30)
+    .attr('text-anchor','middle').attr('font-size',9).attr('fill','#888')
+    .attr('font-family','Georgia,serif').text('Rank (lower = better)');
+
+  // Bars per nation
+  const barH = ySc.bandwidth() / 2 - 1;
+
+  data.forEach(d => {
+    const y0 = ySc(d.label);
+    const cfg = KEY_TO_CONFIG[d.key];
+
+    // Average non-host rank bar (background, light)
+    g.append('rect')
+      .attr('x',0).attr('y', y0).attr('width',0).attr('height',barH)
+      .attr('fill', cfg.color).attr('opacity',0.2).attr('rx',2)
+      .transition().duration(500).ease(d3.easeQuadOut)
+      .attr('width', xSc(d.avgNonHost));
+
+    // Host rank bar (foreground, solid)
+    g.append('rect')
+      .attr('x',0).attr('y', y0+barH+2).attr('width',0).attr('height',barH)
+      .attr('fill', cfg.color).attr('opacity',0.85).attr('rx',2)
+      .transition().duration(500).ease(d3.easeQuadOut)
+      .attr('width', xSc(d.hostRank));
+
+    // Labels
+    g.append('text')
+      .attr('x', xSc(d.avgNonHost)+4).attr('y', y0+barH/2+4)
+      .attr('font-size',8).attr('fill','#aaa').attr('font-family','Georgia,serif')
+      .text(`avg ${d.avgNonHost}`);
+
+    g.append('text')
+      .attr('x', xSc(d.hostRank)+4).attr('y', y0+barH*1.5+4)
+      .attr('font-size',8.5).attr('fill',cfg.color).attr('font-weight','bold')
+      .attr('font-family','Georgia,serif')
+      .text(`${d.year}: rank ${d.hostRank} (${d.boost}×)`);
+  });
+
+  // Legend
+  const legG = svg.append('g').attr('transform',`translate(${mg.left},${H-7})`);
+  legG.append('rect').attr('x',0).attr('y',-2).attr('width',12).attr('height',7)
+    .attr('fill','#888').attr('opacity',0.2).attr('rx',2);
+  legG.append('text').attr('x',15).attr('y',4)
+    .attr('font-size',8.5).attr('fill','#888').attr('font-family','Georgia,serif')
+    .text('Avg non-host rank');
+  legG.append('rect').attr('x',120).attr('y',-2).attr('width',12).attr('height',7)
+    .attr('fill','#888').attr('opacity',0.85).attr('rx',2);
+  legG.append('text').attr('x',135).attr('y',4)
+    .attr('font-size',8.5).attr('fill','#555').attr('font-family','Georgia,serif')
+    .text('Host year rank');
+}
+
+// PANEL 4: DISCIPLINE BREAKDOWN - D3 horizontal bars
+function drawDiscPanel(nation, point) {
+  el('disc-title').textContent = `${nation.label} — ${point.year}`;
+  el('disc-sub').textContent   = `Rank ${point.rank}${point.hosted?' · ◎ Host':''} · all medals by discipline`;
+
+  const container = el('disc-body');
+  container.innerHTML = '';
+
+  // Medal summary strip
+  const strip = document.createElement('div');
+  strip.style.cssText = 'display:flex;gap:6px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid #f0f0ee';
+  [['Gold','#b8860b','#fffbe6',point.G],['Silver','#666','#f5f5f5',point.S],['Bronze','#a0522d','#fff3e6',point.B]].forEach(([lbl,c,bg,v]) => {
+    strip.innerHTML += `<div style="flex:1;text-align:center;padding:5px;border-radius:5px;background:${bg}">
+      <div style="font-size:17px;font-weight:700;color:${c}">${v}</div>
+      <div style="font-size:9px;color:#aaa">${lbl}</div></div>`;
+  });
+  container.appendChild(strip);
+
+  const raw = DATA.disciplines[nation.key]?.[point.year] || {};
+  const discs = Object.entries(raw).sort((a,b)=>b[1]-a[1]).slice(0,8).map(([n,v])=>({name:n,val:v}));
+  if (!discs.length) { container.innerHTML += ph('?','No discipline data'); return; }
+
+  const svgW = container.clientWidth - 24;
+  const bH = 16, bG = 5;
+  const labW = 96, valW = 22;
+  const barW = svgW - labW - valW - 6;
+  const svgH = discs.length * (bH+bG) + 4;
+
+  const xSc = d3.scaleLinear().domain([0, d3.max(discs,d=>d.val)]).range([0,barW]);
+  const svg = d3.select(container).append('svg').attr('width',svgW).attr('height',svgH);
+  const gBar = svg.append('g').attr('transform',`translate(${labW},0)`);
+
+  // Tracks
+  gBar.selectAll('.tr').data(discs).join('rect').attr('class','tr')
+    .attr('x',0).attr('y',(_,i)=>i*(bH+bG))
+    .attr('width',barW).attr('height',bH)
+    .attr('rx',3).attr('fill','#f0f0ee');
+
+  // Bars animated
+  gBar.selectAll('.bar').data(discs).join('rect').attr('class','bar')
+    .attr('x',0).attr('y',(_,i)=>i*(bH+bG))
+    .attr('height',bH).attr('rx',3)
+    .attr('fill',nation.color).attr('opacity',0.78)
+    .attr('width',0)
+    .transition().duration(380).ease(d3.easeQuadOut)
+    .attr('width',d=>xSc(d.val));
+
+  // Value labels
+  gBar.selectAll('.vl').data(discs).join('text').attr('class','vl')
+    .attr('x',d=>xSc(d.val)+4).attr('y',(_,i)=>i*(bH+bG)+bH/2+4)
+    .attr('font-size',9).attr('fill','#aaa').attr('font-family','Georgia,serif')
+    .text(d=>d.val);
+
+  // Disc labels
+  svg.selectAll('.dl').data(discs).join('text').attr('class','dl')
+    .attr('x',labW-5).attr('y',(_,i)=>i*(bH+bG)+bH/2+4)
+    .attr('text-anchor','end').attr('font-size',9).attr('fill','#666')
+    .attr('font-family','Georgia,serif')
+    .text(d=>d.name.length>12?d.name.slice(0,11)+'…':d.name);
+}
+
+
+// RESIZE
+let rTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(rTimer);
+  rTimer = setTimeout(() => drawBump(), 180);
+});
+</script>
+</body>
+</html>
