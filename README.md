@@ -2,10 +2,6 @@
 
 An interactive data visualization dashboard built with D3.js (v7), analysing Summer Olympic Games performance from 1960 to 2020.
 
-## Overview
-
-This dashboard was built as coursework for **7CCSMSDV Introduction to Data Visualization** at King's College London (Summer 2026).
-
 It answers two research questions:
 - **Q1** — How have nation gold medal rankings evolved across Summer Olympic editions from 1960 to 2020?
 - **Q2** — Does hosting the Olympic Games confer a measurable advantage in gold medal performance?
