@@ -2,8 +2,6 @@
 
 An interactive data visualization dashboard built with D3.js (v7), analysing Summer Olympic Games performance from 1960 to 2020.
 
----
-
 ## Overview
 
 This dashboard was built as coursework for **7CCSMSDV Introduction to Data Visualization** at King's College London (Summer 2026).
@@ -11,8 +9,6 @@ This dashboard was built as coursework for **7CCSMSDV Introduction to Data Visua
 It answers two research questions:
 - **Q1** — How have nation gold medal rankings evolved across Summer Olympic editions from 1960 to 2020?
 - **Q2** — Does hosting the Olympic Games confer a measurable advantage in gold medal performance?
-
----
 
 ## Features
 
@@ -33,8 +29,6 @@ It answers two research questions:
 - **Period filter** → full 1960–2020 or post-Soviet 1992–2020
 - **Reset** → restore default view
 
----
-
 ## Data Sources
 
 | File | Description | Rows |
@@ -44,8 +38,6 @@ It answers two research questions:
 
 **Source:** Olympics.com historical records via Kaggle  
 ([piterfm/olympic-games-medals-19862018](https://www.kaggle.com/datasets/piterfm/olympic-games-medals-19862018))
-
----
 
 ## Data Processing
 
@@ -59,8 +51,6 @@ All processing happens in the browser via `d3.csv()` — no pre-processed files:
 6. Extract medal type breakdown (G/S/B) per nation per year
 7. Aggregate discipline medal counts for detail panel
 
----
-
 ## Running Locally
 
 > **Important:** Must be served via HTTP — do not open `index.html` directly by double-clicking.
@@ -71,23 +61,25 @@ python3 -m http.server 8000
 ```
 Then open [http://localhost:8000](http://localhost:8000) in Chrome.
 
----
-
 ## Tech Stack
 
 - **D3.js v7.8.5** — all visualizations drawn as SVG
 - **Vanilla JavaScript** — no frameworks
 - **HTML/CSS** — single self-contained file
 
----
-
 ## Project Structure
 
 ```
 olympic-dashboard/
-├── index.html            ← D3 webapp (all code in one file)
-├── olympic_medals.csv    ← medals dataset
-├── olympic_hosts.csv     ← hosts dataset
+├── index.html           ← D3 webapp 
+├── data/
+│   ├── olympic_medals.csv    ← medals dataset
+│   ├── olympic_hosts.csv     ← hosts dataset
+│   ├── olympic_athletes.csv     
+│   ├── olympic_results.csv     
+│   ├── summer_paralympics.csv     
+│   ├── winter_paralympics.csv                 
+├── figures/
 └── README.md
 ```
 
