@@ -1,6 +1,6 @@
 # Olympic Performance Dashboard
 
-An interactive data visualization dashboard built with D3.js (v7), analysing Summer Olympic Games performance from 1960 to 2020.
+An interactive data visualization dashboard built with D3.js(v7), analysing Summer Olympic Games performance from 1960 to 2020.
 ---
 
 ## Overview
