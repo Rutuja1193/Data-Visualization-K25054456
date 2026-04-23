@@ -2,8 +2,6 @@
 
 An interactive data visualization dashboard built with D3.js (v7), analysing Summer Olympic Games performance from 1960 to 2020.
 
-**Live Demo:** [View Dashboard](https://[your-username].github.io/olympic-dashboard)
-
 ---
 
 ## Overview
@@ -67,18 +65,11 @@ All processing happens in the browser via `d3.csv()` — no pre-processed files:
 
 > **Important:** Must be served via HTTP — do not open `index.html` directly by double-clicking.
 
-**Option 1 — Python:**
 ```bash
 cd olympic-dashboard
 python3 -m http.server 8000
 ```
 Then open [http://localhost:8000](http://localhost:8000) in Chrome.
-
-**Option 2 — WebStorm:**
-Right-click `index.html` → Open in Browser (WebStorm serves it automatically).
-
-**Option 3 — VS Code:**
-Install Live Server extension → right-click `index.html` → Open with Live Server.
 
 ---
 
@@ -101,8 +92,3 @@ olympic-dashboard/
 ```
 
 ---
-
-## Module
-
-**7CCSMSDV Introduction to Data Visualization**  
-MSc, Department of Informatics, King's College London, Summer 2026
